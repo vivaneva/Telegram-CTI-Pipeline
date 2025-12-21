@@ -3,6 +3,7 @@ from telethon import TelegramClient
 from pymongo import MongoClient
 import certifi
 import os
+import time # 속도 조절용
 from dotenv import load_dotenv
 
 # 1. .env 열기
@@ -31,11 +32,10 @@ except Exception as e:
 client = TelegramClient('my_session', api_id, api_hash)
 
 async def main():
-    print(f"🚀 [{target_channel}] 데이터 수집을 시작합니다.")
+    print(f"🚀 [{target_channel}] 최신 위협 정보 수집 시작(중복 제거 모드)...")
     
-    # 최근 글 20개 긁어오기 (테스트용)
-    # reverse=True: 과거 -> 현재 순서로 저장
-    async for message in client.iter_messages(target_channel, limit=20, reverse=True):
+    # 최근 글 30개 수집 (reverse=True 제거 -> 최신순)
+    async for message in client.iter_messages(target_channel, limit=30):
         
         # 1. 내용이 없으면(사진만 있으면) 패스
         if not message.text:
@@ -50,14 +50,26 @@ async def main():
             "url": f"https://t.me/{target_channel}/{message.id}" # 게시글 링크
         }
 
-        # 3. 몽고DB에 저장 (중복 방지 로직은 나중에 추가)
+        # 3. 몽고DB에 저장
         try:
-            # 같은 메시지 ID가 있어도 일단은 무조건 저장(insert)
-            collection.insert_one(doc)
-            print(f"💾 저장 완료: {message.id}번 게시물")
+            # 중복이면 덮어쓰고(Update), 없으면 새로 저장(Insert)
+            result = collection.update_one(
+                {"message_id": message.id, "channel_name": target_channel}, 
+                {"$set": doc}, 
+                upsert=True
+            )
+
+            if result.upserted_id:
+                print(f"🆕 [신규] {message.id}번 게시물 저장 완료")
+            else:
+                print(f"♻️ [중복] {message.id}번은 이미 있어서 갱신함")
+
         except Exception as e:
             print(f"⚠️ 저장 에러: {e}")
 
+        # 봇 탐지 방지 (0.5초 휴식)
+        time.sleep(0.5)
+        
     print("\n🎉 모든 작업이 끝났습니다!")
 
 # 프로그램 실행
