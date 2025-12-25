@@ -1,15 +1,12 @@
 import time
 from deep_translator import GoogleTranslator
 
-# config.py에서 DB 객체를 가져옵니다
+# config.py에서 DB 객체를 가져오기
 from config import collection
 
-def main():
-    # 1. 번역 대상 찾기 (아직 번역 안 된 것만 쏙 골라내기)
-    # text_translated 필드가 null 이거나, 아예 없는 문서만 찾음
+def run_translation_job():
+    # 1. 번역 대상 찾기 (text_translated가 비어있는 것)
     query = {"$or": [{"text_translated": None}, {"text_translated": {"$exists": False}}]}
-    
-    # 번역 대상 개수 확인
     target_docs = list(collection.find(query))
     total_count = len(target_docs)
     
@@ -44,9 +41,7 @@ def main():
             
             # 진행 상황 출력
             print(f"[{i}/{total_count}] ID:{msg_id} 번역 완료 ✅")
-            print(f"   🇷🇺 원문: {original_text[:30]}...")
-            print(f"   🇰🇷 번역: {translated_text[:30]}...")
-            print("-" * 50)
+            print(f"   🇰🇷 {translated_text[:40]}...")
             
             # (3) 구글 API 차단 방지
             time.sleep(1.0) 
@@ -58,4 +53,4 @@ def main():
     print(f"\n🎉 작업 끝! {total_count}개의 게시글을 모두 한국어로 바꿨습니다.")
 
 if __name__ == "__main__":
-    main()
+    run_translation_job()
