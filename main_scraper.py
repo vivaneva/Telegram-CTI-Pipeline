@@ -1,45 +1,22 @@
 import asyncio
-from telethon import TelegramClient
-from pymongo import MongoClient
 from datetime import datetime, timedelta, timezone
-import certifi
-import os
-from dotenv import load_dotenv
+from telethon import TelegramClient
 
-# 1. .env 열기
-load_dotenv()
+# config.py에서 설정과 DB 객체를 가져옵니다
+from config import API_ID, API_HASH, TARGET_CHANNEL, collection
 
-# ======================================================
-# 설정 정보 (환경변수에서 가져오기)
-# ======================================================
-api_id = int(os.getenv("API_ID")) # 숫자로 바꿔주기
-api_hash = os.getenv("API_HASH")
-mongo_uri = os.getenv("MONGO_URI")
-target_channel = 'usersecc'
-# ======================================================
-
-# 2. 몽고DB 연결
-try:
-    db_client = MongoClient(mongo_uri, tlsCAFile=certifi.where())
-    db = db_client["CTI_DB"]      # DB 이름
-    collection = db["telegram_logs"] # 데이터를 넣을 Collection 이름
-    print("✅ MongoDB 연결 성공!")
-except Exception as e:
-    print(f"❌ DB 연결 실패: {e}")
-    exit() # DB 안 되면 프로그램 종료
-
-# 3. 텔레그램 클라이언트 생성
-client = TelegramClient('my_session', api_id, api_hash)
+# 텔레그램 클라이언트 생성
+client = TelegramClient('my_session', API_ID, API_HASH)
 
 async def main():
-    print(f"🚀 [{target_channel}] 최신 위협 정보 수집 시작(중복 제거 모드)...")
+    print(f"🚀 [{TARGET_CHANNEL}] 최신 위협 정보 수집 시작(중복 제거 모드)...")
     
     # 3개월 전 날짜 계산 (UTC 기준)
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
     print(f"📅 수집 기준일: {cutoff_date.strftime('%Y-%m-%d')} 이후 데이터만 수집합니다.")
 
     # limit=None으로 설정 (개수 제한 없이 날짜로 끊기)
-    async for message in client.iter_messages(target_channel, limit=None):
+    async for message in client.iter_messages(TARGET_CHANNEL, limit=None):
         
         # 1. 날짜 확인: 3개월 이전 글이면 종료
         if message.date < cutoff_date:
@@ -66,7 +43,7 @@ async def main():
 
         # 4. 저장할 데이터 뭉치 만들기 (Dictionary)
         doc = {
-            "channel_name": target_channel,
+            "channel_name": TARGET_CHANNEL,
             "message_id": message.id,
             "date": message.date,          # 글 쓴 시간 (UTC)
             "text": message.text,          # 원문 (러시아어)
@@ -74,7 +51,7 @@ async def main():
             "views": message.views,        # [추가 2] 조회수 (영향력 측정용)
             "is_forwarded": bool(message.fwd_from), # [추가 3] 공유글 여부 (True/False)
             "forward_from": forward_info,  # [추가 4] 공유 출처
-            "url": f"https://t.me/{target_channel}/{message.id}",
+            "url": f"https://t.me/{TARGET_CHANNEL}/{message.id}",
             "crawled_at": datetime.now(timezone.utc) # [추가 5] 수집된 시점
         }
 
@@ -82,7 +59,7 @@ async def main():
         try:
             # 중복이면 덮어쓰고(Update), 없으면 새로 저장(Insert)
             result = collection.update_one(
-                {"message_id": message.id, "channel_name": target_channel}, 
+                {"message_id": message.id, "channel_name": TARGET_CHANNEL}, 
                 {"$set": doc}, 
                 upsert=True
             )
