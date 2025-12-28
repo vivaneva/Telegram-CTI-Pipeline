@@ -15,8 +15,11 @@ try:
     API_HASH = os.getenv("API_HASH")
     MONGO_URI = os.getenv("MONGO_URI")
     
-    # ★ 타겟 채널을 여기서 한 번만 바꾸면 모든 코드에 적용됩니다.
+    # 타겟 채널
     TARGET_CHANNEL = 'usersecc'
+
+    # 디스코드 웹훅 URL
+    DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 except TypeError:
     print("❌ 오류: .env 파일 설정이 잘못되었습니다. (API_ID는 숫자여야 함)")
