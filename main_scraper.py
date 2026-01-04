@@ -54,19 +54,10 @@ async def save_message(message):
             print(f"⚠️ 저장 에러: {e}")
 
 async def main():
-    print(f"🚀 [{TARGET_CHANNEL}] 과거 3개월 데이터 수집 시작...")
-    
-    # 90일 전 날짜 계산 (UTC 기준)
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
-    print(f"📅 수집 기준일: {cutoff_date.strftime('%Y-%m-%d')} ~ 현재\n")
+    print(f"🚀 [{TARGET_CHANNEL}] 데이터 수집 시작...")
 
-    # limit=None으로 설정 (개수 제한 없이 날짜로 끊기)
-    async for message in client.iter_messages(TARGET_CHANNEL, limit=None):
-       
-        # 날짜 확인: 3개월 이전 글이면 종료
-        if message.date < cutoff_date:
-            print("🛑 3개월치 데이터 수집 완료!.")
-            break
+    # limit=None으로 설정 (개수 제한 없이 수집)
+    async for message in client.iter_messages(TARGET_CHANNEL, limit=None, reverse=True):
 
         # 텍스트 없으면 건너뛰기
         if not message.text:
